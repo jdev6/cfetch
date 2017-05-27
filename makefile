@@ -11,7 +11,7 @@ cfetch:
 	$(CC) $(CFLAGS) -o $(OUT) $(SRC)
 
 debug:
-	$(CC) $(CFLAGS) -ggdb -o $(OUT).debug $(SRC)
+	$(CC) -DDEBUG $(CFLAGS) -ggdb -o $(OUT).debug $(SRC)
 
 install: cfetch
 	install ./cfetch /usr/bin

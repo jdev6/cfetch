@@ -6,15 +6,18 @@
 
 /* program stuff.*/
 
+#define ORDER "kosdcgruR" //default order
 #define PROGRAM "cfetch"
 #define VERSION "0.1"
 #define HELP PROGRAM" "VERSION" (compiled "__DATE__"-"__TIME__")\n\
-usage: \n\
+usage: "PROGRAM" [options] order\nwherein options are\n\
  -h show help\n\
  -v version\n\
- -c\"color code\" set things color for example red \e[1m'"PROGRAM" -c\"[1;31m\"'\e[0m\n"
+ -c\"color code\" set things color for example red '"PROGRAM" -c\"[1;31m\"'\n\
+order is the order for the things that are the information.. default one is '"ORDER"',and letters:\n\
+k-kernel, o-os, s-shell, d-desktop, c-cpu, g-gpu, r-resolution, u-uptime, R-ram\n"
 
-#ifndef NODEBUG
+#ifdef DEBUG
 	#define flog(...) do { fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); } while(0)
 #else
 	#define flog(...)
@@ -25,35 +28,15 @@ char color[7] = "[1;32m";
 //formates printf
 #define printff(var, ...) do {printf("\e%s%s\e[0m: ", color, var); printf(__VA_ARGS__);} while(0)
 
-int main(int argc, char** argv) {
-	for (int i = 1; i < argc; i++) {
-		char* arg = argv[i];
-		if (*arg == '-') {
-			switch (arg[1]) {
-				case 'h':
-					fprintf(stderr, HELP);
-					return 0;
-				case 'v':
-					fprintf(stderr, PROGRAM" "VERSION"\n");
-					return 0;
-				case 'c':
-					strcpy(color, arg+2);
-					break;
-				default:
-					fprintf(stderr, "illegal option '%c'\n", arg[1]);
-					fprintf(stderr, HELP);
-					return 1;
-			}
-		}
-	}
-
+/* kernel */
+void i_kernel(void) {
 	struct utsname unamed;
 	uname(&unamed);
-	
-	/* kernel */
-	printff("Kernel", "%s %s\n", unamed.sysname, unamed.release);
+	printff("Kernel", "%s %s %s\n", unamed.sysname, unamed.release, unamed.machine);
+}
 
-	/* os */
+/* os */
+void i_os(void) {
 	FILE* lsb = fopen("/etc/lsb-release", "r"); //contains DISTRIB_KEY=VALUE pairs
 	if (lsb != NULL) {
 		char id[64];
@@ -77,19 +60,25 @@ int main(int argc, char** argv) {
 		printff("OS", "%s %s %s\n", id, release, codename);
 		fclose(lsb);
 	}
-
-	/* shell */
+}
+/* shell */
+void i_shell(void) {
 	char* getenv(const char* name);
 	char* shell = getenv("SHELL");
 	printff("Shell", "%s\n", shell ? shell : "unknown");
+}
 
-	/* desktop session?..*/
+/* desktop session?..*/
+void i_desktop(void) {
+	char* getenv(const char* name);
 	char* desktop = getenv("DESKTOP_SESSION");
 	if (desktop) {
 		printff("Desktop", "%s\n", desktop);
 	}
+}
 
-	/* cpu */
+/* cpu */
+void i_cpu(void) {
 	struct cpu_raw_data_t cpuraw;
 	struct cpu_id_t cpudata;
 
@@ -105,8 +94,10 @@ int main(int argc, char** argv) {
 			printf("\n");
 		}
 	}
-	
-	/* gpu */
+}
+
+/* gpu */
+void i_gpu(void) {
 	void free (void* ptr);
 	FILE* pci = popen("/usr/bin/lspci", "r");
 	if (pci != NULL) {
@@ -121,8 +112,10 @@ int main(int argc, char** argv) {
 		free(line);
 		pclose(pci);
 	}
+}
 
-	/* resoluion*/
+/* resoluion*/
+void i_resolution(void) {
 	FILE* xrandr = popen("/usr/bin/xrandr", "r");
 	if (xrandr != NULL) {
 		int width, height;
@@ -131,14 +124,18 @@ int main(int argc, char** argv) {
 		}
 		pclose(xrandr);
 	}
+}
 
 
-	/* uptime*/
+/* uptime*/
+void i_uptime(void) {
 	struct sysinfo info;
 	sysinfo(&info);
 	printff("Uptime", "%lih %lim\n", info.uptime/3600, info.uptime/60%60);
+}
 
-	/* ram */
+/* ram */
+void i_ram(void) {
 	#if 0
 	//uses sysinfo from uptime (but is less acurate..??)
 	printff("RAM", "%luMiB / %luMiB\n", (unsigned long int)(info.totalram-info.freeram-info.bufferram*10.4-info.sharedram)/(1024*1024), info.totalram/(1024*1024));
@@ -167,9 +164,55 @@ int main(int argc, char** argv) {
 			}
 		}
 		printff("RAM", "%ziMiB / %ziMiB\n", (memtotal - memfree - buffers - cached)/1024, memtotal/1024);
-		fclose(lsb);
+		fclose(meminfo);
 	}
 	#endif
+}
+
+int main(int argc, char** argv) {
+	char order[] = ORDER;
+
+	for (int i = 1; i < argc; i++) {
+		char* arg = argv[i];
+		if (*arg == '-') {
+			switch (arg[1]) {
+				case 'h':
+					fprintf(stderr, HELP);
+					return 0;
+				case 'v':
+					fprintf(stderr, PROGRAM" "VERSION"\n");
+					return 0;
+				case 'c':
+					strcpy(color, arg+2);
+					break;
+				default:
+					fprintf(stderr, "illegal option '%c'\n", arg[1]);
+					fprintf(stderr, HELP);
+					return 1;
+			}
+		} else {
+			strncpy(order, arg, strlen(order));
+		}
+	}
+
+	for (int i = 0; i < strlen(order); i++) {
+		#define map(c,f) case c: i_##f(); break
+		switch (order[i]) {
+			map('k', kernel);	
+			map('o', os);
+			map('s', shell);
+			map('d', desktop);
+			map('c', cpu);
+			map('g', gpu);
+			map('r', resolution);
+			map('u', uptime);
+			map('R', ram);
+			default: fprintf(stderr, "ilegal thing. doesnot exist '%c'\n", order[i]);
+
+		}
+		#undef map
+	}
+
 
 	return 0;
 }
