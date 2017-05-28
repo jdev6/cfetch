@@ -12,6 +12,6 @@ however if you have a error or something doesnt show.. use `make debug`. it will
 
 and `make install` to install in /usr/bin.. probably needs sudo
 
-#dependencies
+# dependencies
 
 Xlib (sorry for wayland., to get screen resolution),and  libcpuid for CPU  info and pcilib (probably allready installed.) for gpu info

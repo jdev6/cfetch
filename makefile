@@ -17,6 +17,6 @@ install: cfetch
 	install ./cfetch /usr/bin
 
 clean:
-	rm $(OUT) || :
+	rm $(OUT)* || :
 
 
