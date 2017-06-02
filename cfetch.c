@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/sysinfo.h>
+#include <unistd.h>
 #include <stdlib.h>
 #define int64_t __eeee_E_E /* justs so cpuid doesnt redefine int64_t... it does that for whartever reason*/
 #include <libcpuid/libcpuid.h>
@@ -10,7 +11,7 @@
 #include "ascii.h"
 
 /* program stuff.*/
-#define ORDER "kosdcgruR" //default order
+#define ORDER "ukosdcgrUR" //default order
 #define MAX_INFOS 30
 #define PROGRAM "cfetch"
 #define VERSION "0.1"
@@ -22,7 +23,7 @@ usage: "PROGRAM" [options] order\nwherein options are\n\
  -a icon align: '-au' up, '-ad' down, '-al' left \n\
  -d\"distro\": for distro icon (see https://github.com/jdev6/cfetch/blob/master/ascii.h)\n\
 order is the order for the things that are the information.. default one is '"ORDER"',and letters:\n\
-k-kernel, o-os, s-shell, d-desktop, c-cpu, g-gpu, r-resolution, u-uptime, R-ram\n"
+u-user(+hostname), k-kernel, o-os, s-shell, d-desktop, c-cpu, g-gpu, r-resolution, U-uptime, R-ram\n"
 
 #ifdef DEBUG
 	#define flog(...) do { fprintf(stderr, "[%s:%s():%i] ", __FILE__, __func__, __LINE__); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); } while(0)
@@ -37,8 +38,19 @@ int ICON_FINISHED = 0;
 //formates printf
 #define printff(var, ...) do {\
 	if(ICON_INDEX > -1 && ICON_ALIGN == ALIGN_LEFT && !(ICON_FINISHED = !*icons[ICON_INDEX][ICON_LINE])) printf(" %s\e[0m   ", icons[ICON_INDEX][ICON_LINE++]);\
-	printf(" \e%s%s\e[0m: ", color, var); printf(__VA_ARGS__);}\
+	if (*var) printf(" \e%s%s\e[0m: ", color, var); printf(__VA_ARGS__);}\
 while(0)
+
+/* i_user */
+void i_user(void) {
+	char hostname[64];
+	if (gethostname(hostname, 64) != -1) {
+		char* user = getenv("USER"); //required to set in login by posix
+		if (user) {
+			printff("\0", "\e%s%s@%s\e[0m\n", color, user, hostname);
+		} else flog("error to get $USER");
+	} else flog("error getting hostname");
+}
 
 /* kernel */
 void i_kernel(void) {
@@ -285,6 +297,7 @@ int main(int argc, char** argv) {
 	for (int i = 0; i < strlen(order); i++) {
 		#define map(c,f) case c: i_##f(); break
 		switch (order[i]) {
+			map('u', user);
 			map('k', kernel);	
 			map('o', os);
 			map('s', shell);
@@ -292,7 +305,7 @@ int main(int argc, char** argv) {
 			map('c', cpu);
 			map('g', gpu);
 			map('r', resolution);
-			map('u', uptime);
+			map('U', uptime);
 			map('R', ram);
 			default: fprintf(stderr, "ilegal thing. doesnot exist '%c'\n", order[i]);
 
